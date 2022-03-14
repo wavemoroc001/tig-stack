@@ -1,0 +1,61 @@
+services: 
+  telegraf:
+    container_name: telegraf
+    image: telegraf:1.21.4-alpine
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    environment:
+      - TZ=Asia/Bangkok
+    networks:
+      - tick-networks
+    volumes:
+      - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+  
+  influxdb:
+    container_name: influxdb
+    image : influxdb:2.1.1
+    healthcheck:
+      test: "curl -f http://influxdb:8086/health"
+      interval: 3s
+      timeout: 10s
+      retries: 5
+    environment:
+      - TZ=Asia/Bangkok
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=admin1234
+      - DOCKER_INFLUXDB_INIT_ORG=syslog
+      - DOCKER_INFLUXDB_INIT_BUCKET=syslog-bucket
+      - DOCKER_INFLUXDB_INIT_RETENTION=1w
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=J5wuC5U_63vqCkMFb38Zm5jBh5gGgd3oofJvDrY9QSN41e_NWgC8VeVflCw3foRC8XaqMOtMJl3eKLYemBxWlA==
+    volumes:
+      - ./influxdb/config:/etc/influxdb2
+      - ./influxdb/data:/var/lib/influxdb2
+    ports:
+      - 8086:8086
+    networks:
+      - tick-networks
+
+# Default user ID is now 472 GID 0
+  grafana:
+    container_name: grafana
+    depends_on:
+      influxdb:
+        condition: service_healthy
+    image: grafana/grafana:8.4.3
+    # environment:
+    #   -
+    volumes:
+      - ./grafana/data:/var/lib/grafana
+      - ./grafana/provision:/etc/grafana
+      - ./grafana/log:/var/log/grafana
+    ports:
+      - 3000:3000
+    networks:
+      - tick-networks
+
+networks:
+  tick-networks:
+    external:
+      name: tick-networks

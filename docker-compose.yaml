@@ -5,18 +5,22 @@ services:
     depends_on:
       influxdb:
         condition: service_healthy
+    restart: unless-stopped
     environment:
       - TZ=Asia/Bangkok
     networks:
       - tick-networks
     volumes:
       - ./telegraf/telegraf.conf:/etc/telegraf/telegraf.conf:ro
+    networks:
+      - tick-networks
   
   influxdb:
     container_name: influxdb
     image : influxdb:2.1.1
+    restart: unless-stopped
     healthcheck:
-      test: "curl -f http://influxdb:8086/health"
+      test: "curl -f http://influxdb:8086/health | grep pass"
       interval: 3s
       timeout: 10s
       retries: 5
@@ -40,18 +44,43 @@ services:
 # Default user ID is now 472 GID 0
   grafana:
     container_name: grafana
+    restart: unless-stopped
     depends_on:
       influxdb:
         condition: service_healthy
     image: grafana/grafana:8.4.3
-    # environment:
-    #   -
+    environment:
+      - TZ=Asia/Bangkok
     volumes:
       - ./grafana/data:/var/lib/grafana
       - ./grafana/provision:/etc/grafana
       - ./grafana/log:/var/log/grafana
     ports:
       - 3000:3000
+    networks:
+      - tick-networks
+  
+  prometheus:
+    container_name: prometheus
+    restart: unless-stopped
+    image: prom/prometheus:v2.34.0
+    volumes : 
+      - ./prometheus:/etc/prometheus/
+    environment:
+      - TZ=Asia/Bangkok
+    ports:
+      - 9090:9090
+    networks:
+      - tick-networks
+
+  push-gateway:
+    container_name: push-gateway
+    restart: unless-stopped
+    image : prom/pushgateway:v1.4.2
+    ports:
+      - 9091:9091
+    environment:
+      - TZ=Asia/Bangkok
     networks:
       - tick-networks
 
